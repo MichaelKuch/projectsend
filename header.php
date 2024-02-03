@@ -39,6 +39,12 @@ if (current_role_in($core_update_allowed)) {
     require_once INCLUDES_DIR . DS . 'core.update.php';
 }
 
+// Redirect to BASE_URI if not logged in
+
+if (!defined('CURRENT_USER_ID')) {
+    ps_redirect(BASE_URI);
+}
+
 // Redirect if password needs to be changed
 password_change_required();
 ?>
