@@ -74,36 +74,38 @@ if (isset($_POST['save'])) {
             }
         }
 
-        foreach ($file['custom_downloads'] as $custom_download) {
-            global $dbh;
+	if (array_key_exists('custom_downloads', $file)) {
+            foreach ($file['custom_downloads'] as $custom_download) {
+                global $dbh;
 
-            if (custom_download_exists($custom_download["link"]) && (!isset($_GET['confirmed']) || !$_GET['confirmed'])) {
-                $confirm = true;
-                continue;
-            }
+                if (custom_download_exists($custom_download["link"]) && (!isset($_GET['confirmed']) || !$_GET['confirmed'])) {
+                    $confirm = true;
+                    continue;
+                }
 
-            if ($custom_download['id']) {
-                if ($custom_download['link']) {
-                    if ($custom_download['link'] != $custom_download['id']) {
+                if ($custom_download['id']) {
+                    if ($custom_download['link']) {
+                        if ($custom_download['link'] != $custom_download['id']) {
+                            $statement = $dbh->prepare('UPDATE ' . TABLE_CUSTOM_DOWNLOADS . ' SET file_id=NULL WHERE link=:link');
+                            $statement->bindParam(':link', $custom_download['id']);
+                            $statement->execute();
+                            if (create_custom_download($custom_download['link'], $file['id'], CURRENT_USER_ID)) {
+                                global $flash;
+                                $flash->warning(__('Updated existing custom link to point to this file.', 'cftp_admin'));
+                            }
+                        }
+                    }
+                    else { // remove file_id from custom download
                         $statement = $dbh->prepare('UPDATE ' . TABLE_CUSTOM_DOWNLOADS . ' SET file_id=NULL WHERE link=:link');
                         $statement->bindParam(':link', $custom_download['id']);
                         $statement->execute();
-                        if (create_custom_download($custom_download['link'], $file['id'], CURRENT_USER_ID)) {
-                            global $flash;
-                            $flash->warning(__('Updated existing custom link to point to this file.', 'cftp_admin'));
-                        }
                     }
                 }
-                else { // remove file_id from custom download
-                    $statement = $dbh->prepare('UPDATE ' . TABLE_CUSTOM_DOWNLOADS . ' SET file_id=NULL WHERE link=:link');
-                    $statement->bindParam(':link', $custom_download['id']);
-                    $statement->execute();
-                }
-            }
-            else {
-                if ($custom_download['link']) {
-                    if (create_custom_download($custom_download['link'], $file['id'], CURRENT_USER_ID)) {
-                        $flash->warning(__('Updated existing custom link to point to this file.', 'cftp_admin'));
+                else {
+                    if ($custom_download['link']) {
+                        if (create_custom_download($custom_download['link'], $file['id'], CURRENT_USER_ID)) {
+                            $flash->warning(__('Updated existing custom link to point to this file.', 'cftp_admin'));
+                        }
                     }
                 }
             }
@@ -132,7 +134,9 @@ if (isset($_POST['save'])) {
             }
         }
     } else {
-        $flash->warning(__('E-mail notifications were not sent according to your settings. Make sure you have a cron job enabled if you need to send them.', 'cftp_admin'));
+        if (CURRENT_USER_LEVEL != 0) {
+            $flash->warning(__('E-mail notifications were not sent according to your settings. Make sure you have a cron job enabled if you need to send them.', 'cftp_admin'));
+	}
     }
 
     // Redirect
